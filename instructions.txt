@@ -11,21 +11,18 @@ NumPy
 Sounddevice
 PyAudio
 SciPy
+
 You can install the necessary Python libraries by running the following command:
 
-bash
-Copy
-Edit
 pip install flask numpy sounddevice pyaudio scipy
+
 Setting Up the Application
 Download the Code: Ensure you have downloaded the full repository or project folder.
 
 Running the Application Locally: Open a terminal and navigate to the project directory. Run the following command to start the Flask server:
 
-bash
-Copy
-Edit
 python app.py
+
 The app will start running on http://127.0.0.1:5000/ by default. You can access it in your web browser.
 
 Using the Web Interface
