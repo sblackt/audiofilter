@@ -21,7 +21,7 @@ Download the Code: Ensure you have downloaded the full repository or project fol
 
 Running the Application Locally: Open a terminal and navigate to the project directory. Run the following command to start the Flask server:
 
-python app.py
+python audiofilter.py
 
 The app will start running on http://127.0.0.1:5000/ by default. You can access it in your web browser.
 
