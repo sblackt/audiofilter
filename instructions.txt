@@ -1,0 +1,58 @@
+Instructions for Setting Up and Running the Audio Filtering Web App
+
+Prerequisites
+Before running the application, ensure that you have the following installed:
+
+Python 3.x (3.6 or newer recommended)
+pip (Python package installer)
+Required Libraries:
+Flask
+NumPy
+Sounddevice
+PyAudio
+SciPy
+You can install the necessary Python libraries by running the following command:
+
+bash
+Copy
+Edit
+pip install flask numpy sounddevice pyaudio scipy
+Setting Up the Application
+Download the Code: Ensure you have downloaded the full repository or project folder.
+
+Running the Application Locally: Open a terminal and navigate to the project directory. Run the following command to start the Flask server:
+
+bash
+Copy
+Edit
+python app.py
+The app will start running on http://127.0.0.1:5000/ by default. You can access it in your web browser.
+
+Using the Web Interface
+Once the app is running, use the web interface to interact with it.
+
+Home Page:
+
+When you visit the root URL (/), the home page will load with basic instructions and controls.
+Audio Device Selection:
+
+Navigate to /get_devices to retrieve a list of available input and output audio devices.
+Use the /select_devices endpoint to choose the input and output devices for audio processing. You can specify the buffer size as an optional parameter.
+Updating Filter Parameters:
+
+Adjust the center frequency and bandwidth of the audio filter using the /update_params endpoint. Valid values for the center frequency range from 20 Hz to 20 kHz, and bandwidth should be within the constraints of the center frequency.
+Start/Stop Audio Processing:
+
+Start audio processing by making a POST request to /start. This will begin applying the filter in real-time to the selected input audio.
+Stop audio processing by making a POST request to /stop.
+Debugging Audio System:
+
+You can retrieve debug information about the audio system (devices, libraries, etc.) by navigating to /debug_audio.
+Error Handling
+If you encounter any issues, the application will respond with an error message, which can be helpful for debugging. Common errors might include:
+
+No devices selected: Ensure that you select valid input and output devices before starting the audio stream.
+Audio stream issues: Make sure your system supports the chosen sample rate and buffer size.
+Notes:
+The app is designed for low-latency real-time audio processing. Ensure your system's hardware is capable of handling the selected sample rate and buffer size for smooth performance.
+Audio levels are monitored and displayed in the terminal. Make sure the input and output devices are connected properly.
