@@ -21,8 +21,9 @@ audio_queue = queue.Queue(maxsize=10)
 current_params = {
     'center_freq': 700,        # Hz
     'bandwidth': 250,          # Hz
-    'sample_rate': 48000,      # Higher sample rate for better quality
+    'sample_rate': 44100.0,    # Higher sample rate for better quality
     'buffer_size': 256,        # Smaller buffer size for lower latency
+    'bit_depth': 24,           # Set to match audio interface
     'input_device_id': None,   # Will be set when input device is selected
     'output_device_id': None   # Will be set when output device is selected
 }
@@ -100,95 +101,84 @@ def get_audio_devices():
     return device_list
 
 def create_bandpass_filter(center_freq, bandwidth, sample_rate):
-    """Create a bandpass filter using scipy's butter filter"""
+    """Optimized bandpass filter balancing quality and latency"""
+    center_freq = float(center_freq)
+    bandwidth = float(bandwidth)
+    sample_rate = float(sample_rate)
+    
     low = center_freq - bandwidth/2
     high = center_freq + bandwidth/2
     nyquist = sample_rate / 2
     
-    print(f"Filter params - Center: {center_freq}, Bandwidth: {bandwidth}")
-    print(f"Pre-normalize - Low: {low}, High: {high}, Nyquist: {nyquist}")
+    # Print debug info
+    print(f"\nFilter Configuration:")
+    print(f"Sample rate: {sample_rate} Hz")
+    print(f"Center frequency: {center_freq} Hz")
+    print(f"Bandwidth: {bandwidth} Hz")
+    print(f"Passband: {low} Hz to {high} Hz")
     
-    # Remove the max(20, ...) clamp when normalizing
-    low_norm = low / nyquist
-    high_norm = high / nyquist
-    
-    # Ensure the normalized frequencies are within (0, 1)
-    low_norm = max(0.001, min(0.99, low_norm))
-    high_norm = max(0.001, min(0.99, high_norm))
-    
-    print(f"Normalized - Low: {low_norm}, High: {high_norm}")
-    
+    # Still using order 2, but optimized for lower latency
     order = 2
-    return butter(order, [low_norm, high_norm], btype='band', output='sos')
+    return butter(order, Wn=[low/nyquist, high/nyquist], btype='band', output='sos')
 
 def audio_callback(indata, outdata, frames, time, status):
-    """Optimized callback function for CW audio filtering"""
+    """Optimized callback for lower latency"""
     try:
-        # Convert input to float32 and normalize
+        # Get the mono input and apply initial gain
         audio_data = indata[:, 0].astype(np.float32)
         
-        # Add input level monitoring
-        input_max = np.max(np.abs(audio_data))
-        if input_max > 0.01:  # Only print when signal is present
-            print(f"Input level: {input_max}")
+        # Print input levels only occasionally to reduce overhead
+        if np.random.random() < 0.1:  # Only print 10% of the time
+            input_peak = np.max(np.abs(audio_data))
+            if input_peak > 0.01:
+                print(f"Input peak: {input_peak:.4f}")
         
-        # Normalize input if it's too hot
-        if input_max > 0:
-            audio_data = audio_data / (input_max + 1e-6)  # Prevent divide by zero
+        # Initial gain stage
+        pre_gain = 4.0
+        audio_data = audio_data * pre_gain
         
-        # Get filter parameters
-        center_freq = current_params['center_freq']
-        bandwidth = current_params['bandwidth']
-        sample_rate = current_params['sample_rate']
-        
-        # Apply the bandpass filter
-        sos = create_bandpass_filter(center_freq, bandwidth, sample_rate)
+        # Apply filter
+        sos = create_bandpass_filter(
+            current_params['center_freq'],
+            current_params['bandwidth'],
+            current_params['sample_rate']
+        )
         filtered = sosfilt(sos, audio_data)
         
-        # Apply a very modest gain
-        gain = 0.7  # Reduced gain to prevent clipping
-        filtered = filtered * gain
+        # Final gain stage
+        post_gain = 4.0
+        filtered = filtered * post_gain
         
-        # Gentle compression instead of hard clipping
-        threshold = 0.7
-        if np.max(np.abs(filtered)) > threshold:
-            filtered = np.sign(filtered) * (threshold + (np.abs(filtered) - threshold) * 0.3)
+        # Fast limiter
+        np.clip(filtered, -0.95, 0.95, out=filtered)
         
-        # Monitor output levels
-        output_max = np.max(np.abs(filtered))
-        if output_max > 0.01:
-            print(f"Output level: {output_max}")
-            
         outdata[:] = filtered.reshape(-1, 1)
         
     except Exception as e:
         print(f"Error in audio callback: {e}")
         outdata.fill(0)
 
-
-
-    
 def start_audio_stream(input_device_id, output_device_id, sample_rate=None, buffer_size=None):
-    """Initialize and start the audio stream with specified parameters"""
+    """Start audio stream with optimized latency settings"""
     if sample_rate is not None:
-        current_params['sample_rate'] = sample_rate
+        current_params['sample_rate'] = float(sample_rate)
     
     if buffer_size is not None:
         current_params['buffer_size'] = buffer_size
 
-    current_params['input_device_id'] = input_device_id
-    current_params['output_device_id'] = output_device_id
-
+    print(f"\nAudio Stream Configuration:")
+    print(f"Sample rate: {current_params['sample_rate']} Hz")
+    print(f"Buffer size: {current_params['buffer_size']} samples")
+    
     try:
-        # Create stream with separate input and output devices
         stream = sd.Stream(
-            device=(input_device_id, output_device_id),  # Separate input and output devices
+            device=(input_device_id, output_device_id),
             samplerate=current_params['sample_rate'],
-            blocksize=current_params['buffer_size'],
+            blocksize=512,  # Reduced buffer size
             dtype=np.float32,
             channels=1,
             callback=audio_callback,
-            latency='low'
+            latency='low'  # Changed to low latency
         )
         return stream
     except Exception as e:
