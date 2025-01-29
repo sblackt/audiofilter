@@ -131,7 +131,7 @@ def audio_callback(indata, outdata, frames, time, status):
         if np.random.random() < 0.1:  # Only print 10% of the time
             input_peak = np.max(np.abs(audio_data))
             if input_peak > 0.01:
-                print(f"Input peak: {input_peak:.4f}")
+                   print(f"Input peak: {input_peak:.4f}, Buffer size: {current_params['buffer_size']} samples")
         
         # Initial gain stage
         pre_gain = 4.0
@@ -174,7 +174,7 @@ def start_audio_stream(input_device_id, output_device_id, sample_rate=None, buff
         stream = sd.Stream(
             device=(input_device_id, output_device_id),
             samplerate=current_params['sample_rate'],
-            blocksize=512,  # Reduced buffer size
+            blocksize=current_params['buffer_size'],
             dtype=np.float32,
             channels=1,
             callback=audio_callback,
